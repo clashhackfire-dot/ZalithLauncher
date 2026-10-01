@@ -101,7 +101,21 @@ class LaunchArgs(
                 }
             }
         }
-        return JSONUtils.insertJSONValueList(minecraftArgs.toTypedArray<String>(), varArgMap)
+        val result = JSONUtils.insertJSONValueList(minecraftArgs.toTypedArray<String>(), varArgMap).toMutableList()
+
+        // Minecraft 26.2+ may provide an LWJGL extraction path pointing into
+        // Android's installed APK lib directory. That directory is read-only,
+        // so LWJGL crashes with AccessDeniedException while creating "lwjgl".
+        // Keep all game-generated native/temp files inside the launcher cache.
+        val nativeWorkDir = File(
+            PathManager.DIR_CACHE,
+            "game-native/${minecraftVersion.getVersionName()}"
+        ).absolutePath
+        result.add("-Dorg.lwjgl.system.SharedLibraryExtractPath=$nativeWorkDir/lwjgl")
+        result.add("-Djna.tmpdir=$nativeWorkDir/jna")
+        result.add("-Dio.netty.native.workdir=$nativeWorkDir/netty")
+
+        return result.toTypedArray()
     }
 
     private fun getMinecraftClientArgs(): Array<String> {
