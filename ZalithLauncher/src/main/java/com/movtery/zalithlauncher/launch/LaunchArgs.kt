@@ -103,16 +103,33 @@ class LaunchArgs(
         }
         val result = JSONUtils.insertJSONValueList(minecraftArgs.toTypedArray<String>(), varArgMap).toMutableList()
 
-        // Minecraft 26.2+ may provide an LWJGL extraction path pointing into
-        // Android's installed APK lib directory. That directory is read-only,
-        // so LWJGL crashes with AccessDeniedException while creating "lwjgl".
-        // Keep all game-generated native/temp files inside the launcher cache.
+        // Minecraft 26.2+ may provide native/temp paths pointing into Android's
+        // installed APK lib directory. That directory is read-only and must not
+        // be used for LWJGL/JNA/Netty extraction or native library lookup.
+        val nativeDir = File(
+            PathManager.DIR_CACHE,
+            "natives/${minecraftVersion.getVersionName()}"
+        ).absolutePath
         val nativeWorkDir = File(
             PathManager.DIR_CACHE,
             "game-native/${minecraftVersion.getVersionName()}"
         ).absolutePath
-        result.add("-Dorg.lwjgl.system.SharedLibraryExtractPath=$nativeWorkDir/lwjgl")
+
+        // Remove conflicting values supplied by the Minecraft version JSON.
+        // These properties are order-sensitive: the final value wins.
+        result.removeAll {
+            it.startsWith("-Djava.library.path=") ||
+            it.startsWith("-Djna.boot.library.path=") ||
+            it.startsWith("-Djna.tmpdir=") ||
+            it.startsWith("-Dorg.lwjgl.system.SharedLibraryExtractPath=") ||
+            it.startsWith("-Dio.netty.native.workdir=")
+        }
+
+        // Put Android-writable locations back as the final JVM properties.
+        result.add("-Djava.library.path=$nativeDir:${PathManager.DIR_NATIVE_LIB}")
+        result.add("-Djna.boot.library.path=$nativeDir")
         result.add("-Djna.tmpdir=$nativeWorkDir/jna")
+        result.add("-Dorg.lwjgl.system.SharedLibraryExtractPath=$nativeWorkDir/lwjgl")
         result.add("-Dio.netty.native.workdir=$nativeWorkDir/netty")
 
         return result.toTypedArray()
