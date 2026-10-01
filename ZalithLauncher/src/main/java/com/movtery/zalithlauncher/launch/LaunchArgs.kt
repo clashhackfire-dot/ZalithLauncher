@@ -126,7 +126,7 @@ class LaunchArgs(
         }
 
         // Put Android-writable locations back as the final JVM properties.
-        result.add("-Djava.library.path=$nativeDir:${PathManager.DIR_NATIVE_LIB}")
+        result.add("-Djava.library.path=$nativeWorkDir/lwjgl:$nativeDir:${PathManager.DIR_NATIVE_LIB}")
         result.add("-Djna.boot.library.path=$nativeDir")
         result.add("-Djna.tmpdir=$nativeWorkDir/jna")
         result.add("-Dorg.lwjgl.system.SharedLibraryExtractPath=$nativeWorkDir/lwjgl")
