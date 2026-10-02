@@ -227,6 +227,10 @@ class LaunchGame {
             val versionInfo = Tools.getVersionInfo(minecraftVersion)
             val gameDirPath = minecraftVersion.getGameDir()
 
+            // Minecraft 26.2+ supports an explicit graphics backend preference.
+            // Apply the launcher setting before Minecraft reads options.txt.
+            applyGraphicsApiPreference(minecraftVersion, gameDirPath)
+
             //预处理
             Tools.disableSplash(gameDirPath)
             val launchClassPath = Tools.generateLaunchClassPath(versionInfo, minecraftVersion)
