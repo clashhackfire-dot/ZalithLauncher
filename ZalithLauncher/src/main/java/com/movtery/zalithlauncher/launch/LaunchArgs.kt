@@ -67,6 +67,15 @@ class LaunchArgs(
         val configFilePath = if (is7) LibPath.LOG4J_XML_1_7 else LibPath.LOG4J_XML_1_12
         argsList.add("-Dlog4j.configurationFile=${configFilePath.absolutePath}")
 
+        // Minecraft 26.x: use Android-native replacements packaged in the APK.
+        // This bypasses the incompatible Linux ARM64 LWJGL natives extracted from JARs.
+        if (isMinecraft26(minecraftVersion.getVersionName())) {
+            val androidNativeDir = PathManager.DIR_NATIVE_LIB
+            argsList.add("-Dorg.lwjgl.spvc.libname=$androidNativeDir/libspirv-cross.so")
+            argsList.add("-Dorg.lwjgl.shaderc.libname=$androidNativeDir/libshaderc.so")
+            argsList.add("-Dorg.lwjgl.vma.libname=$androidNativeDir/libvma.so")
+        }
+
         val versionSpecificNativesDir = File(PathManager.DIR_CACHE, "natives/${minecraftVersion.getVersionName()}")
         if (versionSpecificNativesDir.exists()) {
             val dirPath = versionSpecificNativesDir.absolutePath
@@ -209,6 +218,11 @@ class LaunchArgs(
         }
         return list.toTypedArray()
     }
+
+    private fun isMinecraft26(versionName: String): Boolean =
+        versionName == "26.2" || versionName.startsWith("26.2-") ||
+            versionName.startsWith("26.2.") || versionName == "26.3" ||
+            versionName.startsWith("26.3-") || versionName.startsWith("26.3.")
 
     companion object {
         @JvmStatic
