@@ -101,7 +101,7 @@ jobs:
             jar="$ROOT/reference/$module.jar"
             curl -fsSL "https://repo1.maven.org/maven2/org/lwjgl/lwjgl-$module/$LWJGL_VERSION/lwjgl-$module-$LWJGL_VERSION-natives-linux-arm64.jar" -o "$jar"
             unzip -qo "$jar" -d "$ROOT/reference/$module"
-            desktop="$ROOT/reference/$module/$lib"
+            desktop="$(find "$ROOT/reference/$module" -type f -name "$lib" -print -quit)"
             test -f "$desktop"
             nm -D --defined-only "$desktop" | awk '{print $3}' | sort -u > "$ROOT/reference/$module.desktop.symbols"
             comm -23 "$ROOT/reference/$module.desktop.symbols" "$OUT/$lib.symbols" > "$ROOT/reference/$module.missing"
