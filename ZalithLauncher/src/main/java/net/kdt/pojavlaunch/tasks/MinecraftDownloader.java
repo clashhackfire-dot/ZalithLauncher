@@ -274,6 +274,17 @@ public class MinecraftDownloader {
         final String base = "https://github.com/MojoLauncher/unilwjgl3-builder/releases/download/v3.4.1-r6/";
         final File targetDirectory = new File(PathManager.DIR_GAME_HOME, "lwjgl3/" + versionName);
 
+        // Minecraft 26.2+ uses the complete LWJGL 3.4.1 stack.
+        // The old Zalith LWJGL bundle is 3.3.x and cannot provide the
+        // new SPVC/Vulkan bindings and their matching native libraries.
+        //
+        // Keep these files together in the per-version directory so the
+        // game sees one coherent LWJGL 3.4.1 class/native set instead of
+        // mixing versions.
+        scheduleLwjglModule(targetDirectory, "lwjgl", version, base,
+                null, 881435);
+        scheduleLwjglModule(targetDirectory, "lwjgl-natives-linux-arm64", version, base,
+                null, 112596);
         scheduleLwjglModule(targetDirectory, "lwjgl-vulkan", version, base,
                 "afae505777b47a65891d5f74789f1d46d5afc6f0", 8540350);
         scheduleLwjglModule(targetDirectory, "lwjgl-vma", version, base,
