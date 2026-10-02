@@ -90,8 +90,7 @@
                     android:layout_alignParentEnd="true"
                     android:layout_centerVertical="true"
                     android:text="@string/setting_graphics_api_default" />
-
-            </com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout
+            </com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout>
 
             <com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout
                 android:id="@+id/renderer_local_import_layout"
