@@ -38,6 +38,7 @@ import net.kdt.pojavlaunch.tasks.MinecraftDownloader
 import net.kdt.pojavlaunch.utils.JREUtils
 import net.kdt.pojavlaunch.value.MinecraftAccount
 import org.greenrobot.eventbus.EventBus
+import java.io.File
 
 class LaunchGame {
     companion object {
@@ -248,6 +249,33 @@ class LaunchGame {
             FFmpegPlugin.discover(activity)
 
             JREUtils.launchWithUtils(activity, runtime, minecraftVersion, launchArgs, customArgs)
+        }
+
+        private fun applyGraphicsApiPreference(version: Version, gameDirPath: File) {
+            val versionName = version.getVersionName()
+            val isMinecraft26_2OrNewer = versionName.matches(Regex("^26\\.(2|[3-9][0-9]*)(?:[-.]|$).*")))
+            if (!isMinecraft26_2OrNewer) return
+
+            val versionConfig = version.getVersionConfig()
+            val selected = versionConfig.getGraphicsApi().ifEmpty { AllSettings.graphicsApi.getValue() }
+            val backend = when (selected) {
+                "prefer_opengl" -> "opengl"
+                "prefer_vulkan" -> "vulkan"
+                else -> "default"
+            }
+
+            runCatching {
+                val optionsFile = File(gameDirPath, "options.txt")
+                val lines = if (optionsFile.exists()) optionsFile.readLines().toMutableList() else mutableListOf()
+                val index = lines.indexOfFirst { it.startsWith("preferredGraphicsBackend:") }
+                val value = "preferredGraphicsBackend:\"$backend\""
+                if (index >= 0) lines[index] = value else lines.add(value)
+                optionsFile.parentFile?.mkdirs()
+                optionsFile.writeText(lines.joinToString("\n") + "\n")
+                Logger.appendToLog("Graphics API preference: $backend")
+            }.onFailure {
+                Logger.appendToLog("Failed to apply graphics API preference: " + it.message)
+            }
         }
 
         private fun checkMemory(activity: AppCompatActivity) {
