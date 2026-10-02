@@ -1,0 +1,196 @@
+name: Minecraft 26.2 Android Native Libraries
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-mc26-natives:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK and NDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install NDK and native build tools
+        run: |
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" "ndk;25.2.9519653"
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/25.2.9519653" >> "$GITHUB_ENV"
+
+      - name: Install host dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build cmake unzip binutils
+
+      - name: Fetch exact dependency revisions used by LWJGL 3.4.1
+        run: |
+          git clone --depth 1 --branch vulkan-sdk-1.4.350.1 https://github.com/KhronosGroup/SPIRV-Cross.git native/spv-cross
+          git clone --depth 1 --branch 2026.1 https://github.com/google/shaderc.git native/shaderc
+          git clone --depth 1 --branch 3.4.1 https://github.com/LWJGL/lwjgl3.git native/lwjgl3
+          (cd native/shaderc && ./utils/git-sync-deps)
+
+      - name: Build SPIRV-Cross C API for Android arm64
+        run: |
+          cmake -S native/spv-cross -B native/build-spvc -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake" \
+            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_PLATFORM=android-26 \
+            -DANDROID_STL=c++_static \
+            -DSPIRV_CROSS_STATIC=OFF \
+            -DSPIRV_CROSS_SHARED=ON \
+            -DSPIRV_CROSS_CLI=OFF \
+            -DSPIRV_CROSS_ENABLE_TESTS=OFF \
+            -DSPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS=ON
+          cmake --build native/build-spvc --target spirv-cross-c-shared -j2
+          SPVC_SO="$(find native/build-spvc -name 'libspirv-cross-c-shared.so' -print -quit)"
+          test -n "$SPVC_SO"
+          cp "$SPVC_SO" native/out-libspirv-cross.so
+
+      - name: Build shaderc combined library for Android arm64
+        run: |
+          cmake -S native/shaderc -B native/build-shaderc -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake" \
+            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_PLATFORM=android-26 \
+            -DANDROID_STL=c++_static \
+            -DSHADERC_SKIP_TESTS=ON \
+            -DSHADERC_SKIP_EXAMPLES=ON \
+            -DSHADERC_SKIP_COPYRIGHT_CHECK=ON \
+            -DSHADERC_ENABLE_HLSL=ON \
+            -DSHADERC_ENABLE_COMBINE=ON \
+            -DBUILD_SHARED_LIBS=OFF
+          cmake --build native/build-shaderc --target shaderc_combined -j2
+
+      - name: Turn shaderc_combined into self-contained libshaderc.so
+        run: |
+          CXX="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang++"
+          COMBINED="$(find native/build-shaderc -name 'libshaderc_combined.a' -print -quit)"
+          test -n "$COMBINED"
+          "$CXX" -shared -fPIC -O2 -static-libstdc++ \
+            -Wl,--whole-archive "$COMBINED" -Wl,--no-whole-archive \
+            -Wl,-soname,libshaderc.so \
+            -o native/out-libshaderc.so
+          test -f native/out-libshaderc.so
+
+      - name: Build LWJGL 3.4.1 VMA JNI library for Android arm64
+        run: |
+          mkdir -p native/vma/include
+          cp native/lwjgl3/modules/lwjgl/vma/src/main/c/vk_mem_alloc.h native/vma/include/
+          cp native/lwjgl3/modules/lwjgl/vma/src/generated/c/org_lwjgl_util_vma_Vma.cpp native/vma/
+          cat > native/vma/include/common_tools.h <<'EOF'
+          #pragma once
+          #include <jni.h>
+          #include <stdint.h>
+          #define DISABLE_WARNINGS()
+          #define ENABLE_WARNINGS()
+          #define EXTERN_C_ENTER extern "C" {
+          #define EXTERN_C_EXIT }
+          #define UNUSED_PARAM(x) (void)(x)
+          #define UNUSED_PARAMS(a,b) (void)(a); (void)(b)
+          EOF
+          cat > native/vma/include/lwjgl_malloc.h <<'EOF'
+          #pragma once
+          #include <jni.h>
+          #include <stddef.h>
+          #include <stdint.h>
+          typedef void* (*mallocPROC)(size_t);
+          typedef void* (*callocPROC)(size_t,size_t);
+          typedef void* (*reallocPROC)(void*,size_t);
+          typedef void (*freePROC)(void*);
+          typedef void* (*aligned_allocPROC)(size_t,size_t);
+          typedef void (*aligned_freePROC)(void*);
+          static mallocPROC org_lwjgl_malloc;
+          static callocPROC org_lwjgl_calloc;
+          static reallocPROC org_lwjgl_realloc;
+          static freePROC org_lwjgl_free;
+          static aligned_allocPROC org_lwjgl_aligned_alloc;
+          static aligned_freePROC org_lwjgl_aligned_free;
+          extern "C" JNIEXPORT void JNICALL Java_org_lwjgl_util_vma_LibVma_setupMalloc(
+              JNIEnv*, jclass, jlong malloc, jlong calloc, jlong realloc, jlong free,
+              jlong aligned_alloc, jlong aligned_free) {
+              org_lwjgl_malloc = (mallocPROC)(uintptr_t)malloc;
+              org_lwjgl_calloc = (callocPROC)(uintptr_t)calloc;
+              org_lwjgl_realloc = (reallocPROC)(uintptr_t)realloc;
+              org_lwjgl_free = (freePROC)(uintptr_t)free;
+              org_lwjgl_aligned_alloc = (aligned_allocPROC)(uintptr_t)aligned_alloc;
+              org_lwjgl_aligned_free = (aligned_freePROC)(uintptr_t)aligned_free;
+          }
+          EOF
+          CXX="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang++"
+          "$CXX" -shared -fPIC -O2 -std=c++17 -static-libstdc++ \
+            -I native/vma/include \
+            -I "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include" \
+            -Wl,-soname,libvma.so \
+            -o native/out-libvma.so native/vma/org_lwjgl_util_vma_Vma.cpp
+          test -f native/out-libvma.so
+
+      - name: Verify native libraries and compare LWJGL symbol sets
+        run: |
+          set -e
+          mkdir -p native/desktop
+          for spec in \
+            "spvc lwjgl-spvc-3.4.1-natives-linux.jar libspirv-cross.so" \
+            "shaderc lwjgl-shaderc-3.4.1-natives-linux.jar libshaderc.so" \
+            "vma lwjgl-vma-3.4.1-natives-linux.jar liblwjgl_vma.so"; do
+            set -- $spec
+            curl -fsSL "https://repo1.maven.org/maven2/org/lwjgl/$2/3.4.1/$2.jar" -o "native/desktop/$2.jar"
+            unzip -oq "native/desktop/$2.jar" "*/$3" -d "native/desktop/$1"
+          done
+
+          for so in native/out-libspirv-cross.so native/out-libshaderc.so native/out-libvma.so; do
+            echo "==== $so ===="
+            readelf -d "$so" | tee /tmp/dynamic.txt
+            if grep -q 'libstdc++.so.6' /tmp/dynamic.txt; then
+              echo "ERROR: $so depends on libstdc++.so.6"
+              exit 1
+            fi
+            readelf -d "$so" | grep 'NEEDED' || true
+          done
+
+          echo "==== exported symbols ===="
+          nm -D --defined-only native/out-libspirv-cross.so | sort > native/spvc.android.symbols
+          nm -D --defined-only native/out-libshaderc.so | sort > native/shaderc.android.symbols
+          nm -D --defined-only native/out-libvma.so | sort > native/vma.android.symbols
+          nm -D --defined-only native/desktop/spvc/$(find native/desktop/spvc -name 'libspirv-cross.so' -printf '%P\n' | head -1) | sort > native/spvc.desktop.symbols
+          nm -D --defined-only native/desktop/shaderc/$(find native/desktop/shaderc -name 'libshaderc.so' -printf '%P\n' | head -1) | sort > native/shaderc.desktop.symbols
+          nm -D --defined-only native/desktop/vma/$(find native/desktop/vma -name 'liblwjgl_vma.so' -printf '%P\n' | head -1) | sort > native/vma.desktop.symbols
+
+          comm -23 native/spvc.desktop.symbols native/spvc.android.symbols || true
+          comm -23 native/shaderc.desktop.symbols native/shaderc.android.symbols || true
+          comm -23 native/vma.desktop.symbols native/vma.android.symbols || true
+
+      - name: Install Android natives into launcher jniLibs
+        run: |
+          mkdir -p ZalithLauncher/src/main/jniLibs/arm64-v8a
+          cp native/out-libspirv-cross.so ZalithLauncher/src/main/jniLibs/arm64-v8a/libspirv-cross.so
+          cp native/out-libshaderc.so ZalithLauncher/src/main/jniLibs/arm64-v8a/libshaderc.so
+          cp native/out-libvma.so ZalithLauncher/src/main/jniLibs/arm64-v8a/libvma.so
+
+      - name: Build arm64 debug APK
+        run: |
+          chmod +x gradlew
+          ./gradlew :jre_lwjgl3glfw:build :ZalithLauncher:assembleDebug -Darch=arm64 --no-daemon
+
+      - name: Upload native libraries
+        uses: actions/upload-artifact@v4
+        with:
+          name: mc26-android-arm64-natives
+          path: |
+            native/out-libspirv-cross.so
+            native/out-libshaderc.so
+            native/out-libvma.so
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZalithLauncher-MC26-Debug-arm64
+          path: ZalithLauncher/build/outputs/apk/debug/*arm64*.apk
