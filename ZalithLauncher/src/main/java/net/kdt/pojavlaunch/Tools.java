@@ -445,11 +445,24 @@ public final class Tools {
             String libName = libItem.name;
             if (libName == null) continue;
 
-            if (libName.contains("org.lwjgl") ||
+            // Minecraft 26.2+ ships additional LWJGL 3.4.1 Java modules
+            // (Vulkan, SPVC, VMA, shaderc, etc.). Do not discard all
+            // org.lwjgl libraries: Minecraft needs these classes even when
+            // OpenGL is selected as the rendering backend.
+            //
+            // Keep the launcher-managed GLFW/LWJGL implementation in the
+            // dedicated LWJGL component, but allow the newer optional
+            // modules supplied by Minecraft itself onto the classpath.
+            if ((libName.startsWith("org.lwjgl:lwjgl:") ||
+                 libName.startsWith("org.lwjgl:lwjgl-glfw:") ||
+                 libName.startsWith("org.lwjgl:lwjgl-opengl:") ||
+                 libName.startsWith("org.lwjgl:lwjgl-openal:") ||
+                 libName.startsWith("org.lwjgl:lwjgl-stb:") ||
+                 libName.startsWith("org.lwjgl:lwjgl-jemalloc:") ||
+                 libName.startsWith("org.lwjgl:lwjgl-freetype:")) ||
                 libName.contains("jinput-platform") ||
-                libName.contains("twitch-platform")
-            ) {
-                Logging.d(InfoDistributor.LAUNCHER_NAME, "Ignored unusable dependency: " + libName);
+                libName.contains("twitch-platform")) {
+                Logging.d(InfoDistributor.LAUNCHER_NAME, "Ignored launcher-managed dependency: " + libName);
                 continue;
             }
 
