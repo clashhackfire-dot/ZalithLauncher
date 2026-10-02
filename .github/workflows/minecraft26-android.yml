@@ -1,0 +1,133 @@
+name: Minecraft 26.2 Android Native + Debug APK
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  ANDROID_NDK_VERSION: 27.2.12479018
+  ANDROID_PLATFORM: android-26
+  ANDROID_ABI: arm64-v8a
+  SPIRV_CROSS_TAG: vulkan-sdk-1.4.350.1
+  SHADERC_TAG: v2026.1
+  LWJGL_VERSION: 3.4.1
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Install Android NDK
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;$ANDROID_NDK_VERSION$"
+          echo "ANDROID_NDK=$ANDROID_SDK_ROOT/ndk/$ANDROID_NDK_VERSION$" >> "$GITHUB_ENV"
+      - name: Install native tools
+        run: sudo apt-get update && sudo apt-get install -y ninja-build patchelf
+      - name: Build Android arm64 LWJGL replacements
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/.mc26-native"
+          OUT="$ROOT/out"
+          NDK="$ANDROID_NDK"
+          TOOLCHAIN="$NDK/build/cmake/android.toolchain.cmake"
+          CLANGXX="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang++"
+          mkdir -p "$OUT"
+
+          git clone --depth 1 --branch "$SPIRV_CROSS_TAG" https://github.com/KhronosGroup/SPIRV-Cross.git "$ROOT/spirv-cross"
+          cmake -S "$ROOT/spirv-cross" -B "$ROOT/spirv-cross-build" -GNinja             -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN"             -DANDROID_ABI="$ANDROID_ABI" -DANDROID_PLATFORM="$ANDROID_PLATFORM"             -DCMAKE_ANDROID_STL_TYPE=c++_static -DANDROID_STL=c++_static             -DSPIRV_CROSS_CLI=OFF -DSPIRV_CROSS_STATIC=OFF -DSPIRV_CROSS_SHARED=ON             -DSPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS=ON
+          cmake --build "$ROOT/spirv-cross-build" --target spirv-cross-c-shared -j2
+          SPVC="$(find "$ROOT/spirv-cross-build" -type f -name 'libspirv-cross-c-shared.so' -print -quit)"
+          test -n "$SPVC"
+          cp "$SPVC" "$OUT/libspirv-cross.so"
+
+          git clone --depth 1 --branch "$SHADERC_TAG" https://github.com/google/shaderc.git "$ROOT/shaderc"
+          (cd "$ROOT/shaderc" && ./utils/git-sync-deps)
+          cmake -S "$ROOT/shaderc" -B "$ROOT/shaderc-build" -GNinja             -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN"             -DANDROID_ABI="$ANDROID_ABI" -DANDROID_PLATFORM="$ANDROID_PLATFORM"             -DCMAKE_ANDROID_STL_TYPE=c++_static -DANDROID_STL=c++_static             -DSHADERC_SKIP_TESTS=ON -DSHADERC_SKIP_EXAMPLES=ON             -DSHADERC_SKIP_COPYRIGHT_CHECK=ON -DSHADERC_ENABLE_SHARED_CRT=OFF             -DSHADERC_ENABLE_HLSL=OFF -DSPIRV_SKIP_EXECUTABLES=ON
+          cmake --build "$ROOT/shaderc-build" --target shaderc_combined -j2
+          SHADERC_A="$(find "$ROOT/shaderc-build" -type f -name 'libshaderc_combined.a' -print -quit)"
+          test -n "$SHADERC_A"
+          "$CLANGXX" -shared -static-libstdc++ -Wl,-soname,libshaderc.so             -Wl,--whole-archive "$SHADERC_A" -Wl,--no-whole-archive             -llog -landroid -lz -ldl -lm -latomic -o "$OUT/libshaderc.so"
+
+          mkdir -p "$ROOT/vma"
+          curl -fsSL "https://raw.githubusercontent.com/LWJGL/lwjgl3/$LWJGL_VERSION/modules/lwjgl/vma/src/generated/c/org_lwjgl_util_vma_Vma.cpp" -o "$ROOT/vma/Vma.cpp"
+          curl -fsSL "https://raw.githubusercontent.com/LWJGL/lwjgl3/$LWJGL_VERSION/modules/lwjgl/vma/src/main/c/vk_mem_alloc.h" -o "$ROOT/vma/vk_mem_alloc.h"
+          python3 - "$ROOT/vma/Vma.cpp" <<'PY'
+          from pathlib import Path
+          import sys
+          p=Path(sys.argv[1]); s=p.read_text()
+          a=s.index('#include "common_tools.h"'); b=s.index('DISABLE_WARNINGS()',a)
+          shim=r'''
+          #include <jni.h>
+          #include <cstdlib>
+          #include <cstdint>
+          #define DISABLE_WARNINGS()
+          #define ENABLE_WARNINGS()
+          #define EXTERN_C_ENTER extern "C" {
+          #define EXTERN_C_EXIT }
+          #define UNUSED_PARAMS(env, clazz) (void)(env); (void)(clazz)
+          static inline void* org_lwjgl_aligned_alloc(size_t alignment,size_t size){void* p=nullptr;return posix_memalign(&p,alignment,size)==0?p:nullptr;}
+          static inline void org_lwjgl_aligned_free(void* p){std::free(p);}
+          '''
+          p.write_text(s[:a]+shim+s[b:])
+          PY
+          cat > "$ROOT/vma/LibVmaShim.cpp" <<'CPP'
+          #include <jni.h>
+          extern "C" JNIEXPORT void JNICALL Java_org_lwjgl_util_vma_LibVma_setupMalloc(JNIEnv*,jclass,jlong,jlong,jlong,jlong,jlong,jlong) {}
+          CPP
+          "$CLANGXX" -std=c++17 -fPIC -shared -static-libstdc++ -I"$ROOT/vma"             "$ROOT/vma/Vma.cpp" "$ROOT/vma/LibVmaShim.cpp" -llog -landroid -lvulkan -o "$OUT/libvma.so"
+
+          for so in "$OUT"/*.so; do
+            file "$so"
+            readelf -h "$so" | grep -E 'Class:|Machine:'
+            ! readelf -d "$so" | grep -q 'libstdc++.so.6'
+            ! readelf -d "$so" | grep -q 'libc++_shared.so'
+            nm -D --defined-only "$so" | awk '{print $3}' | sort -u > "$so.symbols"
+          done
+
+          mkdir -p "$ROOT/reference"
+          for spec in "spvc:libspirv-cross.so" "shaderc:libshaderc.so" "vma:liblwjgl_vma.so"; do
+            module="$spec%%:*$"
+            lib="$spec##*:$"
+            jar="$ROOT/reference/$module.jar"
+            curl -fsSL "https://repo1.maven.org/maven2/org/lwjgl/lwjgl-$module/$LWJGL_VERSION/lwjgl-$module-$LWJGL_VERSION-natives-linux-arm64.jar" -o "$jar"
+            unzip -qo "$jar" -d "$ROOT/reference/$module"
+            desktop="$ROOT/reference/$module/$lib"
+            test -f "$desktop"
+            nm -D --defined-only "$desktop" | awk '{print $3}' | sort -u > "$ROOT/reference/$module.desktop.symbols"
+            comm -23 "$ROOT/reference/$module.desktop.symbols" "$OUT/$lib.symbols" > "$ROOT/reference/$module.missing"
+            if [ -s "$ROOT/reference/$module.missing" ]; then
+              echo "Missing LWJGL exports from $lib:"
+              cat "$ROOT/reference/$module.missing"
+              exit 1
+            fi
+          done
+
+          mkdir -p ZalithLauncher/src/main/jniLibs/arm64-v8a
+          cp "$OUT/libspirv-cross.so" ZalithLauncher/src/main/jniLibs/arm64-v8a/
+          cp "$OUT/libshaderc.so" ZalithLauncher/src/main/jniLibs/arm64-v8a/
+          cp "$OUT/libvma.so" ZalithLauncher/src/main/jniLibs/arm64-v8a/
+      - name: Upload native libraries
+        uses: actions/upload-artifact@v4
+        with:
+          name: Minecraft-26.2-Android-arm64-natives
+          path: .mc26-native/out/*.so
+      - name: Build debug arm64 APK
+        run: |
+          chmod +x gradlew
+          ./gradlew jre_lwjgl3glfw:build --no-daemon
+          ./gradlew ZalithLauncher:assembleDebug -Darch=arm64 --no-daemon
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZalithLauncher-MC26.2-Android-arm64-Debug
+          path: ZalithLauncher/build/outputs/apk/debug/*
