@@ -173,9 +173,18 @@ public final class Tools {
                 }
             }
         }
-        // Remove the ':' at the end
-        libStr.setLength(libStr.length() - 1);
-        return libStr.toString();
+        return libStr.length() == 0 ? "" : libStr.substring(0, libStr.length() - 1);
+    }
+
+    private static void appendLWJGLJars(StringBuilder libStr, File folder) {
+        File[] files = folder.listFiles();
+        if (files == null) return;
+        Arrays.sort(files, (a, b) -> a.getName().compareToIgnoreCase(b.getName()));
+        for (File file : files) {
+            if (file.isFile() && file.getName().endsWith(".jar")) {
+                libStr.append(file.getAbsolutePath()).append(":");
+            }
+        }
     }
 
     public static String generateLaunchClassPath(JMinecraftVersionList.Version info, Version minecraftVersion) {
