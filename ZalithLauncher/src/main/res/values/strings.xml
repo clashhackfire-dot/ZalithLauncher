@@ -407,6 +407,11 @@
     <string name="setting_category_experimental">Experimental Settings</string>
     <string name="setting_category_experimental_patches">Experimental Patches</string>
     <string name="setting_category_support">External Support</string>
+    <string name="setting_graphics_api_title">Graphics API</string>
+    <string name="setting_graphics_api_follow_global">Follow Global Settings</string>
+    <string name="setting_graphics_api_default">Default</string>
+    <string name="setting_graphics_api_opengl">Prefer OpenGL</string>
+    <string name="setting_graphics_api_vulkan">Prefer Vulkan (Experimental)</string>
     <string name="setting_renderer_title">Renderer</string>
     <string name="setting_renderer_from_plugins">From %s Plugin</string>
     <string name="setting_renderer_local_import_title">Local Renderer Import</string>
