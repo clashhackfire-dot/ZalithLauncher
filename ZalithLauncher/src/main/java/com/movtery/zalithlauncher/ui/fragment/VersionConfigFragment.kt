@@ -142,6 +142,7 @@ class VersionConfigFragment : FragmentWithAnim(R.layout.fragment_version_config)
     private fun closeSpinner() {
         binding.isolationType.dismiss()
         binding.rendererSpinner.dismiss()
+        binding.graphicsApiSpinner.dismiss()
         binding.driverSpinner.dismiss()
         binding.runtimeSpinner.dismiss()
     }
@@ -304,6 +305,24 @@ class VersionConfigFragment : FragmentWithAnim(R.layout.fragment_version_config)
                     OnSpinnerItemSelectedListener { _: Int, _: String?, i1: Int, _: String? ->
                         if (i1 == renderList.size - 1) config.setRenderer("")
                         else config.setRenderer(rendererNames[i1])
+                    })
+
+                //图形 API
+                val graphicsApiValues = arrayOf("", "default", "prefer_opengl", "prefer_vulkan")
+                val graphicsApiList = arrayOf(
+                    context.getString(R.string.setting_graphics_api_follow_global),
+                    context.getString(R.string.setting_graphics_api_default),
+                    context.getString(R.string.setting_graphics_api_opengl),
+                    context.getString(R.string.setting_graphics_api_vulkan)
+                )
+                val graphicsApiAdapter = DefaultSpinnerAdapter(graphicsApiSpinner)
+                graphicsApiAdapter.setItems(graphicsApiList.toList())
+                graphicsApiSpinner.setSpinnerAdapter(graphicsApiAdapter)
+                val graphicsApiIndex = graphicsApiValues.indexOf(config.getGraphicsApi()).coerceAtLeast(0)
+                graphicsApiSpinner.selectItemByIndex(graphicsApiIndex)
+                graphicsApiSpinner.setOnSpinnerItemSelectedListener(
+                    OnSpinnerItemSelectedListener { _: Int, _: String?, i1: Int, _: String? ->
+                        config.setGraphicsApi(graphicsApiValues[i1])
                     })
 
                 //驱动器
