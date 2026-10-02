@@ -34,6 +34,37 @@ java {
     }
 }
 
+configurations {
+    create("minecraftLwjglModules") {
+        isCanBeResolved = true
+    }
+}
+
 dependencies {
     implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar"))))
+
+    // Minecraft 26.2/26.3 ships LWJGL 3.4.1 optional Java bindings.
+    // Keep the launcher's patched core/GLFW/OpenGL stack, but add the
+    // modules that Minecraft loads during startup (especially Vulkan).
+    listOf(
+        "org.lwjgl:lwjgl-vulkan:3.4.1",
+        "org.lwjgl:lwjgl-vma:3.4.1",
+        "org.lwjgl:lwjgl-spvc:3.4.1",
+        "org.lwjgl:lwjgl-shaderc:3.4.1",
+        "org.lwjgl:lwjgl-spng:3.4.1"
+    ).forEach { coordinate ->
+        add("minecraftLwjglModules", coordinate) {
+            isTransitive = false
+        }
+    }
+}
+
+tasks.jar {
+    inputs.files(configurations["minecraftLwjglModules"])
+    doLast {
+        copy {
+            from(configurations["minecraftLwjglModules"])
+            into(archiveFile.get().asFile.parentFile)
+        }
+    }
 }
