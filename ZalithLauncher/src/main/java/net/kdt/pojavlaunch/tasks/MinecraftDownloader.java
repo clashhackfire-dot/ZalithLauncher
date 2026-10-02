@@ -283,6 +283,9 @@ public class MinecraftDownloader {
         // mixing versions.
         scheduleLwjglModule(targetDirectory, "lwjgl", version, base,
                 null, 881435);
+        // Minecraft 26.2 references GLFW classes directly.
+        scheduleLwjglModule(targetDirectory, "lwjgl-glfw", version, base,
+                null, 144555);
         scheduleLwjglModule(targetDirectory, "lwjgl-natives-linux-arm64", version, base,
                 null, 112596);
         scheduleLwjglModule(targetDirectory, "lwjgl-vulkan", version, base,
