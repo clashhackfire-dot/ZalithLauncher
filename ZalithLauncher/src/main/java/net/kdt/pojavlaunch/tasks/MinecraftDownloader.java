@@ -253,6 +253,7 @@ public class MinecraftDownloader {
         JAssets assets = downloadAssetsIndex(verInfo);
         if(assets != null) scheduleAssetDownloads(assets);
 
+        scheduleMinecraft26LwjglModules(versionName);
 
         MinecraftClientInfo minecraftClientInfo = getClientInfo(verInfo);
         if(minecraftClientInfo != null) scheduleGameJarDownload(minecraftClientInfo, versionName);
@@ -264,6 +265,36 @@ public class MinecraftDownloader {
             // Infinite inheritance !?! :noway:
             downloadAndProcessMetadata(inheritedVersion, verInfo.inheritsFrom);
         }
+    }
+
+    private void scheduleMinecraft26LwjglModules(String versionName) throws IOException {
+        if (!isMinecraft26(versionName)) return;
+
+        final String version = "3.4.1";
+        final String base = "https://github.com/MojoLauncher/unilwjgl3-builder/releases/download/v3.4.1-r6/";
+        final File targetDirectory = new File(PathManager.DIR_GAME_HOME, "lwjgl3/" + versionName);
+
+        scheduleLwjglModule(targetDirectory, "lwjgl-vulkan", version, base,
+                "afae505777b47a65891d5f74789f1d46d5afc6f0", 8540350);
+        scheduleLwjglModule(targetDirectory, "lwjgl-vma", version, base,
+                "7e63144449c1c15376ba0fb5c570b5897ec3fda8", 105632);
+        scheduleLwjglModule(targetDirectory, "lwjgl-spvc", version, base,
+                "a518e574dcb5421af6311d623b9f6a2e30d8ad77", 141549);
+        scheduleLwjglModule(targetDirectory, "lwjgl-shaderc", version, base,
+                "b22030723786a4a1c09759e313a39974acdb2a2b", 146714);
+    }
+
+    private static boolean isMinecraft26(String versionName) {
+        return versionName.equals("26.2") || versionName.startsWith("26.2-") ||
+                versionName.startsWith("26.2.") || versionName.equals("26.3") ||
+                versionName.startsWith("26.3-") || versionName.startsWith("26.3.");
+    }
+
+    private void scheduleLwjglModule(File directory, String artifact, String version,
+                                     String baseUrl, String sha1, long size) throws IOException {
+        String fileName = artifact + "-" + version + ".jar";
+        scheduleDownload(new File(directory, fileName), DownloadMirror.DOWNLOAD_CLASS_LIBRARIES,
+                baseUrl + fileName, sha1, size, false);
     }
 
     private void growDownloadList(int addedElementCount) {
