@@ -253,7 +253,7 @@ class LaunchGame {
 
         private fun applyGraphicsApiPreference(version: Version, gameDirPath: File) {
             val versionName = version.getVersionName()
-            val isMinecraft26_2OrNewer = versionName.matches(Regex("^26\\.(2|[3-9][0-9]*)(?:[-.]|$).*")))
+            val isMinecraft26_2OrNewer = versionName.matches(Regex("^26\\.(2|[3-9][0-9]*)(?:[-.]|$).*"))
             if (!isMinecraft26_2OrNewer) return
 
             val versionConfig = version.getVersionConfig()
