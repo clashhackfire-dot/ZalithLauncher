@@ -17,6 +17,9 @@ class AllSettings {
         val renderer = StringSettingUnit("renderer", "opengles2")
 
         @JvmStatic
+        val graphicsApi = StringSettingUnit("graphicsApi", "default")
+
+        @JvmStatic
         val driver = StringSettingUnit("driver", "Turnip")
 
         @JvmStatic
