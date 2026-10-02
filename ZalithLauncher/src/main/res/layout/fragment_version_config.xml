@@ -194,7 +194,7 @@
                         android:layout_marginTop="@dimen/_8sdp"
                         android:text="@string/setting_driver_title"
                         app:layout_constraintStart_toStartOf="@+id/driver_spinner"
-                        app:layout_constraintTop_toBottomOf="@+id/renderer_spinner" />
+                        app:layout_constraintTop_toBottomOf="@+id/graphics_api_spinner" />
 
                     <com.skydoves.powerspinner.PowerSpinnerView
                         android:id="@+id/driver_spinner"
