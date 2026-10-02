@@ -117,6 +117,20 @@ class VideoSettingsFragment : AbstractSettingsFragment(R.layout.settings_fragmen
             renderers.rendererIdentifier.toTypedArray()
         )
 
+        ListSettingsWrapper(
+            context,
+            AllSettings.graphicsApi,
+            binding.graphicsApiLayout,
+            binding.graphicsApiTitle,
+            binding.graphicsApiValue,
+            arrayOf(
+                getString(R.string.setting_graphics_api_default),
+                getString(R.string.setting_graphics_api_opengl),
+                getString(R.string.setting_graphics_api_vulkan)
+            ),
+            arrayOf("default", "prefer_opengl", "prefer_vulkan")
+        )
+
         binding.rendererDownload.setOnClickListener { ZHTools.openLink(context, UrlManager.URL_FCL_RENDERER_PLUGIN) }
 
         BaseSettingsWrapper(
