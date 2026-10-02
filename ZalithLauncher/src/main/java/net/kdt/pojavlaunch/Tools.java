@@ -157,8 +157,13 @@ public final class Tools {
         return new File(version.getVersionPath(), version.getVersionName() + ".jar").getAbsolutePath();
     }
 
-    public static String getLWJGL3ClassPath() {
+    public static String getLWJGL3ClassPath(Version minecraftVersion) {
         StringBuilder libStr = new StringBuilder();
+
+        File versionFolder = new File(PathManager.DIR_GAME_HOME,
+                "lwjgl3/" + minecraftVersion.getVersionName());
+        appendLWJGLJars(libStr, versionFolder);
+
         File lwjgl3Folder = new File(PathManager.DIR_GAME_HOME, "lwjgl3");
         File[] lwjgl3Files = lwjgl3Folder.listFiles();
         if (lwjgl3Files != null) {
