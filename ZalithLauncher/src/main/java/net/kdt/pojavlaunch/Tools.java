@@ -164,9 +164,19 @@ public final class Tools {
                 "lwjgl3/" + minecraftVersion.getVersionName());
         appendLWJGLJars(libStr, versionFolder);
 
+        // Minecraft 26.2+ requires a version-matched LWJGL stack.
+        // Never append the launcher's legacy global LWJGL jars when a
+        // per-version stack exists, otherwise old and new LWJGL natives
+        // can be mixed and trigger version/platform mismatch errors.
+        if (libStr.length() > 0) {
+            return libStr.substring(0, libStr.length() - 1);
+        }
+
+        // Older Minecraft versions keep using the legacy launcher bundle.
         File lwjgl3Folder = new File(PathManager.DIR_GAME_HOME, "lwjgl3");
         File[] lwjgl3Files = lwjgl3Folder.listFiles();
         if (lwjgl3Files != null) {
+            Arrays.sort(lwjgl3Files, (a, b) -> a.getName().compareToIgnoreCase(b.getName()));
             for (File file: lwjgl3Files) {
                 if (file.getName().endsWith(".jar")) {
                     libStr.append(file.getAbsolutePath()).append(":");
