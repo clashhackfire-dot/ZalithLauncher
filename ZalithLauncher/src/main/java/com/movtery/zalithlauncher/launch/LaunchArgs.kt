@@ -83,6 +83,23 @@ class LaunchArgs(
             argsList.add("-Djna.boot.library.path=$dirPath")
         }
 
+        // Minecraft 26.x uses LWJGL 3.4.1 modules whose desktop Linux ARM64
+        // natives cannot run on Android. Use the Android-native copies bundled
+        // in the APK instead of the copies extracted into the game cache.
+        val versionName = minecraftVersion.getVersionName()
+        val isMinecraft26 = versionName == "26.2" ||
+            versionName.startsWith("26.2-") ||
+            versionName.startsWith("26.2.") ||
+            versionName == "26.3" ||
+            versionName.startsWith("26.3-") ||
+            versionName.startsWith("26.3.")
+        if (isMinecraft26) {
+            val androidNativeDir = PathManager.DIR_NATIVE_LIB
+            argsList.add("-Dorg.lwjgl.spvc.libname=$androidNativeDir/libspirv-cross.so")
+            argsList.add("-Dorg.lwjgl.shaderc.libname=$androidNativeDir/libshaderc.so")
+            argsList.add("-Dorg.lwjgl.vma.libname=$androidNativeDir/libvma.so")
+        }
+
         return argsList
     }
 
