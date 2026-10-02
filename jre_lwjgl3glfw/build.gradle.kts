@@ -22,6 +22,8 @@ tasks.jar {
         }
     })
     exclude("net/java/openjdk/cacio/ctc/**")
+    // Replace LWJGL 3.4.1 desktop VMA loader with the Android-patched source.
+    exclude("org/lwjgl/util/vma/LibVma.class")
     manifest {
         attributes("Manifest-Version" to "3.3.6")
         attributes("Automatic-Module-Name" to "org.lwjgl")
