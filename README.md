@@ -63,3 +63,8 @@ This project uses several useful code libraries. Special thanks to them!
 >- [CommonMark](https://github.com/thephpleague/commonmark) (for rendering Markdown text): [BSD-3-Clause License](https://github.com/thephpleague/commonmark/blob/2.5/LICENSE)
 >- [AndroidViewAnimations](https://github.com/daimajia/AndroidViewAnimations) (uses part of the animation source code): [MIT License](https://github.com/daimajia/AndroidViewAnimations/blob/master/License)
 >- [TapTargetView](https://github.com/KeepSafe/TapTargetView) (for creating onboarding guides): [Apache License 2.0](https://github.com/KeepSafe/TapTargetView/blob/master/LICENSE)
+
+
+## Minecraft 26.2 Android native build
+
+Open **Actions → Minecraft 26.2 Android Native + Debug APK → Run workflow**. The workflow cross-compiles the SPIRV-Cross, Shaderc and LWJGL VMA replacements for arm64-v8a with the Android NDK, uses the static C++ runtime, checks native dependencies and required exports, packages the libraries into the debug APK, and uploads the APK. On the phone, download **ZalithLauncher-MC26.2-Android-arm64-Debug**, install it, select Minecraft 26.2, and keep Graphics API on **Prefer OpenGL**.
