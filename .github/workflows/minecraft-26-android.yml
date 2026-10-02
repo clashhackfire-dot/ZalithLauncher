@@ -32,7 +32,7 @@ jobs:
       - name: Fetch exact dependency revisions used by LWJGL 3.4.1
         run: |
           git clone --depth 1 --branch vulkan-sdk-1.4.350.1 https://github.com/KhronosGroup/SPIRV-Cross.git native/spv-cross
-          git clone --depth 1 --branch 2026.1 https://github.com/google/shaderc.git native/shaderc
+          git clone --depth 1 --branch v2026.1 https://github.com/google/shaderc.git native/shaderc
           git clone --depth 1 --branch 3.4.1 https://github.com/LWJGL/lwjgl3.git native/lwjgl3
           (cd native/shaderc && ./utils/git-sync-deps)
 
