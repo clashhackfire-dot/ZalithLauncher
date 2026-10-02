@@ -67,6 +67,33 @@
             </com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout>
 
             <com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout
+                android:id="@+id/graphics_api_layout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="?android:attr/selectableItemBackground"
+                android:padding="@dimen/_12sdp">
+
+                <TextView
+                    android:id="@+id/graphics_api_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="@dimen/_8sdp"
+                    android:layout_alignParentStart="true"
+                    android:layout_toStartOf="@id/graphics_api_value"
+                    android:text="@string/setting_graphics_api_title"
+                    android:textColor="@color/black_or_white" />
+
+                <TextView
+                    android:id="@+id/graphics_api_value"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:text="@string/setting_graphics_api_default" />
+
+            </com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout
+
+            <com.movtery.zalithlauncher.ui.layout.AnimRelativeLayout
                 android:id="@+id/renderer_local_import_layout"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
