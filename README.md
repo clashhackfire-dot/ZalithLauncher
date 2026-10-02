@@ -68,3 +68,8 @@ This project uses several useful code libraries. Special thanks to them!
 ## Minecraft 26.2 Android native build
 
 Open **Actions → Minecraft 26.2 Android Native + Debug APK → Run workflow**. The workflow cross-compiles the SPIRV-Cross, Shaderc and LWJGL VMA replacements for arm64-v8a with the Android NDK, uses the static C++ runtime, checks native dependencies and required exports, packages the libraries into the debug APK, and uploads the APK. On the phone, download **ZalithLauncher-MC26.2-Android-arm64-Debug**, install it, select Minecraft 26.2, and keep Graphics API on **Prefer OpenGL**.
+
+
+## Minecraft 26.2 Android-native build
+
+This fork includes a manual GitHub Actions workflow named **Minecraft 26.2 Android Native Libraries**. On GitHub, open **Actions → Minecraft 26.2 Android Native Libraries → Run workflow**. The workflow cross-compiles the LWJGL 3.4.1 SPIRV-Cross, shaderc, and VMA native pieces for **arm64-v8a / Android 26**, verifies that the resulting libraries do not depend on desktop `libstdc++.so.6`, places them in the APK's `jniLibs/arm64-v8a`, and builds a debug arm64 APK. Download **ZalithLauncher-MC26-Debug-arm64**, install the APK on the arm64 phone, and launch Minecraft 26.2 with the OpenGL backend selected.
