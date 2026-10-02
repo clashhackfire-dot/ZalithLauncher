@@ -42,6 +42,7 @@ class LaunchArgs(
         }
 
         argsList.add(versionInfo.mainClass)
+        argsList.addAll(getGraphicsBackendArgs())
         argsList.addAll(getMinecraftClientArgs())
 
         return argsList
@@ -133,6 +134,32 @@ class LaunchArgs(
         result.add("-Dio.netty.native.workdir=$nativeWorkDir/netty")
 
         return result.toTypedArray()
+    }
+
+    /**
+     * Minecraft 26.2+ supports forcing the graphics backend with
+     * --graphicsBackend <opengl|vulkan>. This is stronger than the
+     * preferredGraphicsBackend value in options.txt and prevents Minecraft
+     * from probing/using the wrong backend on devices where Vulkan classes
+     * are unavailable.
+     */
+    private fun getGraphicsBackendArgs(): List<String> {
+        val versionName = minecraftVersion.getVersionName()
+        val isMinecraft26_2OrNewer = versionName == "26.2" ||
+            versionName.startsWith("26.2-") ||
+            versionName.startsWith("26.2.") ||
+            versionName == "26.3" ||
+            versionName.startsWith("26.3-") ||
+            versionName.startsWith("26.3.")
+        if (!isMinecraft26_2OrNewer) return emptyList()
+
+        val selected = minecraftVersion.getVersionConfig().getGraphicsApi()
+            .ifEmpty { AllSettings.graphicsApi.getValue() }
+        return when (selected) {
+            "prefer_opengl" -> listOf("--graphicsBackend", "opengl")
+            "prefer_vulkan" -> listOf("--graphicsBackend", "vulkan")
+            else -> emptyList()
+        }
     }
 
     private fun getMinecraftClientArgs(): Array<String> {
